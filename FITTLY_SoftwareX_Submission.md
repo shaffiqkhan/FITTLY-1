@@ -544,8 +544,7 @@ FITTLY is a highly accurate, fully accessible, and mobile-optimized digital tail
 
 ---
 
-## Acknowledgements
-The authors thank Google AI Studio for provisioning the developer API credits and the open-source community for maintaining React and Vite frameworks.
+
 
 ---
 
