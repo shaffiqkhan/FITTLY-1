@@ -1,0 +1,8 @@
+{
+  "name": "FITTLY",
+  "description": "AI-powered body measurement and size recommendation tool using computer vision and 3D modeling.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}

@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand: #10b981;
+  --color-brand-dark: #059669;
+  --color-brand-light: #d1fae5;
+}
+
+@layer base {
+  body {
+    @apply bg-[#FBFBFC] text-zinc-900 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  
+  h1, h2, h3, h4, .font-display {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer components {
+  .border-bottom {
+    border-bottom-width: 1px;
+  }
+  
+  .glass-nav {
+    @apply bg-white/70 backdrop-blur-2xl border-b border-zinc-200/50 sticky top-0 z-50;
+  }
+  
+  .card-professional {
+    @apply bg-white rounded-[2.5rem] border border-zinc-200/60 shadow-2xl shadow-zinc-200/40 overflow-hidden transition-all duration-500;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-zinc-200 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-zinc-300;
+}
+
+/* Print styles for tailoring sheet */
+@media print {
+  nav, footer, .no-print {
+    display: none !important;
+  }
+  .card-professional {
+    box-shadow: none !important;
+    border: 1px solid #eee !important;
+  }
+}
