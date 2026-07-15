@@ -1,7 +1,6 @@
 # FITTLY: An AI-Powered Digital Tailoring Studio and Web-Grounded Biometric Sizing Assistant
 
-**Authors:** A. Author<sup>1</sup>, S. Masud<sup>1</sup>
-<sup>1</sup> *Department of Computer Science and Software Engineering, Digital Tailoring Lab*
+
 
 ---
 
