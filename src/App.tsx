@@ -4,7 +4,6 @@
  */
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
 import { 
   Camera, 
   Upload, 
@@ -185,40 +184,18 @@ export default function App() {
     setMeasurements(null);
     setError(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      
-      const parts: any[] = [];
-      if (frontBase64) {
-        parts.push({ inlineData: { mimeType: "image/jpeg", data: frontBase64.split(',')[1] } });
-      }
-      if (sideBase64) {
-        parts.push({ inlineData: { mimeType: "image/jpeg", data: sideBase64.split(',')[1] } });
-      }
-
-      parts.push({ text: `Analyze the human body in the provided image(s) (Front and/or Side view). 
-      1. Detect keypoints for each view. 
-      2. Calculate highly accurate body measurements in centimeters.
-      
-      Front keypoints: ${BODY_POINTS_FRONT.map(p => p.id).join(', ')}
-      Side keypoints: ${BODY_POINTS_SIDE.map(p => p.id).join(', ')}
-      
-      Measurements to calculate: neck, armLength, shoulderWidth, legLength, chest, waist, belly, hips, thigh, inseam, sleeveLength, wrist.
-      
-      Return ONLY a JSON object:
-      {
-        "keypoints": [{"id": "string", "name": "string", "x": number, "y": number, "pose": "front" | "side"}],
-        "measurements": { "neck": 0, "armLength": 0, ... }
-      }
-      
-      IMPORTANT: x and y coordinates MUST be percentages from 0 to 100 relative to the image dimensions.` });
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: { parts },
-        config: { responseMimeType: "application/json" }
+      const res = await fetch('/api/gemini/detect-keypoints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frontImage: frontBase64, sideImage: sideBase64 }),
       });
 
-      const result = JSON.parse(response.text || '{}');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to analyze body pose');
+      }
+
+      const result = await res.json();
       if (result.keypoints) {
         // Normalize coordinates if they are in 0-1 range
         const normalizedKeypoints = result.keypoints.map((kpValue: any) => {
@@ -257,9 +234,9 @@ export default function App() {
         }
         calculateGarmentDimensions(initialGarmentPoints, result.measurements);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Keypoint detection failed:", error);
-      setError("Failed to analyze body pose. Please try a clearer photo.");
+      setError(error.message || "Failed to analyze body pose. Please try a clearer photo.");
     } finally {
       setIsProcessing(false);
     }
@@ -270,29 +247,22 @@ export default function App() {
     if (!contextMeasurements || !url) return;
     setIsMatching(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Based on these measurements (in cm): ${JSON.stringify(contextMeasurements)} and the user's preferred color "${color || shopSearchContext?.color || 'any'}", extract the size chart from the website ${url}.
-        Recommend a specific BRAND ARTICLE (cloth item) that best suits the user.
-        
-        Return a JSON object:
-        {
-          "brand": "string",
-          "article": "string",
-          "size": "string",
-          "confidence": number,
-          "reasoning": "string",
-          "link": "string",
-          "colorMatch": "string"
-        }`,
-        config: {
-          tools: [{ urlContext: {} }],
-          responseMimeType: "application/json"
-        }
+      const res = await fetch('/api/gemini/match-size', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          measurements: contextMeasurements,
+          color: color || shopSearchContext?.color || 'any',
+          url,
+        }),
       });
 
-      const result = JSON.parse(response.text || '{}');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to match size');
+      }
+
+      const result = await res.json();
       setRecommendation(result);
     } catch (error) {
       console.error("Size matching failed:", error);
@@ -325,24 +295,22 @@ export default function App() {
     if (!frontImage && !sideImage) return;
     setIsProcessing(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      
-      const parts: any[] = [];
-      if (frontImage) parts.push({ inlineData: { mimeType: "image/jpeg", data: frontImage.split(',')[1] } });
-      if (sideImage) parts.push({ inlineData: { mimeType: "image/jpeg", data: sideImage.split(',')[1] } });
-
-      parts.push({ text: `Based on these updated keypoint coordinates (percentages): ${JSON.stringify(updatedKeypoints)}, recalculate the body measurements in centimeters. 
-      Return ONLY a JSON object with the measurements: { "neck": 0, "armLength": 0, "shoulderWidth": 0, "legLength": 0, "chest": 0, "waist": 0, "belly": 0, "hips": 0, "thigh": 0, "inseam": 0, "sleeveLength": 0, "wrist": 0 }` });
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: { parts },
-        config: {
-          responseMimeType: "application/json"
-        }
+      const res = await fetch('/api/gemini/recalculate-measurements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          frontImage,
+          sideImage,
+          updatedKeypoints,
+        }),
       });
 
-      const result = JSON.parse(response.text || '{}');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to recalculate measurements');
+      }
+
+      const result = await res.json();
       if (result) setMeasurements(result);
     } catch (error) {
       console.error("Recalculation failed:", error);
@@ -356,22 +324,29 @@ export default function App() {
     setIsProcessing(true);
     setError(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Based on these body measurements: ${JSON.stringify(currentMeasurements)} and these custom garment points (percentages on image): ${JSON.stringify(points)}, calculate the custom garment dimensions in centimeters.
-        Return ONLY a JSON object: { "shirtLength": 0, "sleeveLength": 0, "shoulder": 0, "collarSize": 0, "trouserLength": 0, "trouserWaist": 0, "waistMeasure": 0 }`,
-        config: { responseMimeType: "application/json" }
+      const res = await fetch('/api/gemini/calculate-garment-dimensions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          measurements: currentMeasurements,
+          points,
+        }),
       });
-      const result = JSON.parse(response.text || '{}');
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to calculate garment dimensions');
+      }
+
+      const result = await res.json();
       setGarmentDimensions(result);
       if (!initialGarmentDimensions) {
         setInitialGarmentDimensions(result);
         setInitialGarmentPoints([...points]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Garment calculation failed:", error);
-      setError("Failed to calculate garment dimensions. Please try moving the markers.");
+      setError(error.message || "Failed to calculate garment dimensions. Please try moving the markers.");
     } finally {
       setIsProcessing(false);
     }
@@ -1498,11 +1473,20 @@ export default function App() {
             ))}
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2.5 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 shadow-sm shadow-emerald-100/50">
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
               <span className="text-[10px] font-black uppercase tracking-widest">AI Engine Active</span>
             </div>
+            <a
+              href="/api/download-zip"
+              download="fittly-v1.2.0.zip"
+              className="flex items-center gap-2 px-3.5 py-2 bg-zinc-900 text-white rounded-2xl hover:bg-zinc-800 transition-all text-xs font-bold shadow-sm"
+              title="Download latest code zip to upload to GitHub"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Download ZIP</span>
+            </a>
           </div>
         </div>
       </nav>
